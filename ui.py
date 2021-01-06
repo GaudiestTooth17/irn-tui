@@ -60,6 +60,7 @@ def run_simulation_batch():
     sim_length = int_input('How many steps for each simulation? ')
     output = run_cmd(SIM_BIN, disease_name, graph_name,
                      str(num_simulations), str(sim_length))
+    print()
     print(output)
 
 
@@ -99,7 +100,7 @@ def select_file_from_dir(dir_name: str, prompt: str) -> str:
         print_choices(choices)
         selection = int_input('? ')
 
-    return choices[selection]
+    return dir_name + '/' + choices[selection]
 
 
 def print_choices(choices: Dict[int, Any]) -> None:
@@ -127,8 +128,13 @@ def bool_input(msg='') -> bool:
 
 
 def run_cmd(cmd, *args) -> str:
-    raw_output = sp.check_output([cmd] + args, stderr=sp.STDOUT)
-    return raw_output.decode('utf-8')
+    try:
+        raw_output = sp.check_output([cmd] + list(args), stderr=sp.STDOUT)
+        return raw_output.decode('utf-8')
+    except sp.CalledProcessError as e:
+        print('\nCould not execute command\n')
+        print(e)
+        return ''
 
 
 if __name__ == "__main__":
