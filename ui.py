@@ -31,7 +31,8 @@ def main_menu():
     choices = list(enumerate((('quit', exit),
                              ('analyze graph', analyze_graph),
                              ('run simulation batch', run_simulation_batch),
-                             ('visualize simulation', visualize_sim))))
+                             ('visualize simulation', visualize_sim),
+                             ('load visualization', load_visualization))))
     valid_numbers = list(map(lambda c: c[0], choices))
 
     while selection not in valid_numbers:

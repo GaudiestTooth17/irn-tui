@@ -1,4 +1,5 @@
-bin/*
+bin/infection-resistant-network
+bin/graph-visualizer
 visualizations/*
 graphs/*
 diseases/*
