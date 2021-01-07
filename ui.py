@@ -28,10 +28,10 @@ def main_menu():
     """
     selection = -1
     # a collection of choices with an index, plain English name, and a function to call
-    choices = list(enumerate((('analyze graph', analyze_graph),
+    choices = list(enumerate((('quit', exit),
+                             ('analyze graph', analyze_graph),
                              ('run simulation batch', run_simulation_batch),
-                             ('visualize simulation', visualize_sim),
-                             ('quit', exit))))
+                             ('visualize simulation', visualize_sim))))
     valid_numbers = list(map(lambda c: c[0], choices))
 
     while selection not in valid_numbers:
@@ -75,10 +75,15 @@ def visualize_sim():
         vis_name = input('Enter a name: ')
         file_name = f'{VIS_DIR}/{vis_name}'
     else:
-        file_name = f'/tmp/vis_{"".join(time.ctime())}'
+        file_name = f'/tmp/vis_{"".join(time.ctime().split(" "))}'
 
     output = run_cmd(SIM_BIN, disease_name, graph_name)
     print(output.split('\n')[-1])
+    with open(file_name, 'w') as vis_file:
+        with open(graph_name, 'r') as graph_file:
+            graph_text = graph_file.readlines()
+            vis_file.writelines(graph_text + ([] if graph_text[-1] == '\n' else ['\n']))
+            vis_file.write(output)
     run_cmd(VIS_BIN, file_name)
 
 
