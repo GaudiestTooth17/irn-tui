@@ -96,6 +96,9 @@ def load_visualization():
 
 
 def select_file_from_dir(dir_name: str, prompt: str) -> str:
+    """
+    Read the contents of a directory and allow the user to select one of the files in it.
+    """
     file_names = filter(lambda gn: len(gn), run_cmd('ls', dir_name).split('\n'))
     choices = dict(enumerate(file_names))
 
@@ -109,11 +112,18 @@ def select_file_from_dir(dir_name: str, prompt: str) -> str:
 
 
 def print_choices(choices: Dict[int, Any]) -> None:
+    """
+    This is at the heart of the menu system. A collection of choices with corresponding
+    integers is displayed so that users only have to type a number to choose something.
+    """
     for choice in choices.items():
         print(choice[0], choice[1])
 
 
 def safe_int(obj: Any) -> Optional[int]:
+    """
+    :return: something converted to an integer if possible, None if impossible
+    """
     try:
         return int(obj)
     except ValueError:
@@ -121,6 +131,10 @@ def safe_int(obj: Any) -> Optional[int]:
 
 
 def int_input(msg='') -> int:
+    """
+    Like input, but guaranteed to return an int.
+    If the user doesn't input an int, it repeats the prompt.
+    """
     x = safe_int(input(msg))
     if x is None:
         x = int_input(msg)
@@ -128,11 +142,22 @@ def int_input(msg='') -> int:
 
 
 def bool_input(msg='') -> bool:
+    """
+    Similar to input, but returns a bool.
+    :return: True if the user inputs 'y' or 'Y', False otherwise.
+    """
     x = input(f'{msg} (y/n) ')
     return x.lower() == 'y'
 
 
 def run_cmd(cmd, *args) -> str:
+    """
+    Runs a terminal command.
+    :cmd: the name of the command.
+    :args: the arguments to pass it (should be strings).
+    :return: The stdout and stderr output that the command generated if it ran successfully.
+    Otherwise, it returns '' after printing an error message.
+    """
     try:
         raw_output = sp.check_output([cmd] + list(args), stderr=sp.STDOUT)
         return raw_output.decode('utf-8')
