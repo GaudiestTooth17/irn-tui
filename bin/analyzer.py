@@ -10,13 +10,13 @@ import sys
 from typing import Dict, List, Set
 
 
-def read_adj_list(fileName) -> np.ndarray:
+def read_adj_list(file_name) -> np.ndarray:
     """
     This reads in the data from half a symmetric matrix and mirrors it.
     If the whole matrix is present in the file, that won't cause problems.
     This cannot read unsymmetric matrices.
     """
-    with open(fileName, 'r') as f:
+    with open(file_name, 'r') as f:
         line = f.readline()
         shape = (int(line[:-1]), int(line[:-1]))
         matrix = np.zeros(shape, dtype=np.uint8)
@@ -44,8 +44,8 @@ def show_deg_dist_from_matrix(matrix: np.ndarray, title, *, color='b', display=F
     """
     graph = nx.from_numpy_matrix(matrix)
     degree_sequence = sorted([d for n, d in graph.degree()], reverse=True)
-    degreeCount = collections.Counter(degree_sequence)
-    deg, cnt = zip(*degreeCount.items())
+    degree_count = collections.Counter(degree_sequence)
+    deg, cnt = zip(*degree_count.items())
 
     fig, ax = plt.subplots()
     plt.bar(deg, cnt, width=0.80, color=color)

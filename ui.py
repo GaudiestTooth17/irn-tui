@@ -12,11 +12,13 @@ GRAPH_DIR = 'graphs'
 BIN_DIR = 'bin'
 DISEASE_DIR = 'diseases'
 VIS_DIR = 'visualizations'
+TMP_DIR = '/tmp/irn-ui-vis'
 SIM_BIN = f'{BIN_DIR}/infection-resistant-network'
 VIS_BIN = f'{BIN_DIR}/graph-visualizer'
 
 
 def main():
+    run_cmd('mkdir', TMP_DIR, silent=True)
     while True:
         next_function = main_menu()
         next_function()
@@ -32,7 +34,8 @@ def main_menu():
                              ('analyze graph', analyze_graph),
                              ('run simulation batch', run_simulation_batch),
                              ('visualize simulation', visualize_sim),
-                             ('load visualization', load_visualization))))
+                             ('load visualization', load_visualization),
+                             ('create a new disease', create_new_disease))))
     valid_numbers = list(map(lambda c: c[0], choices))
 
     while selection not in valid_numbers:
@@ -46,6 +49,7 @@ def main_menu():
 
 
 def analyze_graph():
+    # TODO: add the go program for analyzing graphs
     graph_name = select_file_from_dir(GRAPH_DIR, 'Select a graph to analyze:')
 
     print('you selected', graph_name)
@@ -74,9 +78,9 @@ def visualize_sim():
     save_vis = bool_input('Would you like to save the visualization?')
     if save_vis:
         vis_name = input('Enter a name: ')
-        file_name = f'{VIS_DIR}/{vis_name}'
+        file_name = f'{VIS_DIR}/{vis_name}.txt'
     else:
-        file_name = f'/tmp/vis_{"".join(time.ctime().split(" "))}'
+        file_name = f'{TMP_DIR}vis_{"".join(time.ctime().split(" "))}.txt'
 
     output = run_cmd(SIM_BIN, disease_name, graph_name)
     print(output.split('\n')[-1])
@@ -94,6 +98,19 @@ def load_visualization():
     """
     visualization_name = select_file_from_dir(VIS_DIR, 'Select a visualization:')
     run_cmd(VIS_BIN, visualization_name)
+
+
+def create_new_disease():
+    """
+    Create and save a new disease
+    """
+    disease_name = input("What is the disease's name? ")
+    time_to_i = int_input('How many steps to transition to infectious state? ')
+    time_to_r = int_input('How many steps to transition to removed state? ')
+    inf_prob = float_input('What is the probability of transmission to neighbors? ')
+    start_num_infected = int_input('How many nodes should be infectious at the start? ')
+    with open(f'{DISEASE_DIR}/{disease_name}.txt', 'w') as dis_file:
+        dis_file.write(f'{time_to_i} {time_to_r} {inf_prob} {start_num_infected}\n')
 
 
 def select_file_from_dir(dir_name: str, prompt: str) -> str:
@@ -121,12 +138,13 @@ def print_choices(choices: Dict[int, Any]) -> None:
         print(choice[0], choice[1])
 
 
-def safe_int(obj: Any) -> Optional[int]:
+def safe_cast(obj: Any, T) -> Optional[int]:
     """
+    :param T: the type to cast to
     :return: something converted to an integer if possible, None if impossible
     """
     try:
-        return int(obj)
+        return T(obj)
     except ValueError:
         return None
 
@@ -136,9 +154,19 @@ def int_input(msg='') -> int:
     Like input, but guaranteed to return an int.
     If the user doesn't input an int, it repeats the prompt.
     """
-    x = safe_int(input(msg))
+    x = safe_cast(input(msg), int)
     if x is None:
         x = int_input(msg)
+    return x
+
+
+def float_input(msg='') -> float:
+    """
+    Like int_input, but for floating point values
+    """
+    x = safe_cast(input(msg), float)
+    while x is None:
+        x = safe_cast(input(msg), float)
     return x
 
 
@@ -151,11 +179,12 @@ def bool_input(msg='') -> bool:
     return x.lower() == 'y'
 
 
-def run_cmd(cmd, *args) -> str:
+def run_cmd(cmd, *args, silent=False) -> str:
     """
     Runs a terminal command.
-    :cmd: the name of the command.
-    :args: the arguments to pass it (should be strings).
+    :param cmd: the name of the command.
+    :param args: the arguments to pass it (should be strings).
+    :param silent: Whether or not to fail silently
     :return: The stdout and stderr output that the command generated if it ran successfully.
     Otherwise, it returns '' after printing an error message.
     """
@@ -163,8 +192,9 @@ def run_cmd(cmd, *args) -> str:
         raw_output = sp.check_output([cmd] + list(args), stderr=sp.STDOUT)
         return raw_output.decode('utf-8')
     except sp.CalledProcessError as e:
-        print('\nCould not execute command\n')
-        print(e)
+        if not silent:
+            print('\nCould not execute command\n')
+            print(e)
         return ''
 
 
