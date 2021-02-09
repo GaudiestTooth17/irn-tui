@@ -1,0 +1,8 @@
+GRAPH_DIR = 'graphs'
+BIN_DIR = 'bin'
+DISEASE_DIR = 'diseases'
+VIS_DIR = 'visualizations'
+TMP_DIR = '/tmp/irn-ui-vis'
+PLOT_DIR = 'plots'
+SIM_BIN = f'{BIN_DIR}/infection-resistant-network'
+VIS_BIN = f'{BIN_DIR}/graph-visualizer'
