@@ -4,6 +4,7 @@ from tkinter import Frame, Listbox, StringVar, Tk, Button, Entry, Label
 from tkinter.constants import BOTTOM, END, LEFT, RIGHT
 import constants as cns
 from utility import ls_dir, run_cmd
+import sim
 
 
 def main():
@@ -123,7 +124,7 @@ def run_vis_sim_screen(root: Tk, old_frame: Frame):
     def run():
         graph = graph_names[graph_list_box.get(graph_list_box.curselection())]
         disease = disease_names[disease_list_box.get(disease_list_box.curselection())]
-        output = run_cmd(cns.SIM_BIN, disease, graph)
+        output = sim.visualize_sim(graph, disease, 100)
         save_file_name = f'{cns.VIS_DIR}/{save_box.get()}'\
             if len(save_box.get()) > 0 else f'{cns.VIS_DIR}/tmp'
         result = output.split('\n')[-2]

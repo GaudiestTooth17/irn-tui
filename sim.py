@@ -3,7 +3,6 @@ import numpy as np
 from typing import Iterable, Tuple, Callable
 from enum import IntEnum
 from collections import namedtuple
-from utility import read_adj_list, read_disease
 from numba import njit, prange
 
 
@@ -28,13 +27,12 @@ def seir_list_to_ndarray(node_states: Iterable[Tuple[int, State]]) -> np.ndarray
     return seir
 
 
-def visualize_sim(matrix_file_name: str, disease_file_name: str, num_steps: int,
-                  visualization_name: str):
+def visualize_sim(matrix_file_name: str, disease_file_name: str, num_steps: int) -> str:
     matrix = read_adj_list(matrix_file_name)
     disease, init_func = read_disease(disease_file_name)
     initial_seir = init_func(matrix.shape[0])
-    seirs = simulate(matrix, initial_seir, num_steps, disease)
-    save_visualization(seirs, visualization_name)
+    seirs = _simulate(matrix, initial_seir, num_steps, disease)
+    return make_visualization_str(seirs)
 
 
 @njit
@@ -43,14 +41,13 @@ def run_sim_batch(matrix_file_name: str, disease_file_name: str, num_steps: int,
     matrix = read_adj_list(matrix_file_name)
     disease, init_func = read_disease(disease_file_name)
     initial_seir = init_func(matrix.shape[0])
-    num_susceptible = [find_num_susceptible_nodes(simulate(matrix, initial_seir, num_steps, disease))
+    num_susceptible = [_find_num_susceptible_nodes(_simulate(matrix, initial_seir, num_steps, disease))
                        for _ in prange(num_sims)]
     return sum(num_susceptible)/len(num_susceptible)
 
 
-@njit(parallel=True)
-def simulate(matrix: np.ndarray, starting_seir: np.ndarray, num_steps: int,
-             disease: Disease) -> np.ndarray:
+def _simulate(matrix: np.ndarray, starting_seir: np.ndarray, num_steps: int,
+              disease: Disease) -> np.ndarray:
     """
     :param matrix: adjacency matrix of graph
     :param seir: starting numbers of s, e, i, r
@@ -58,7 +55,7 @@ def simulate(matrix: np.ndarray, starting_seir: np.ndarray, num_steps: int,
     :return: An array containing the state history of each of the nodes.
              The last index iterates over the steps.
     """
-    seirs = np.zeros((starting_seir.shape[0], starting_seir.shape[1], num_steps),
+    seirs = np.zeros((num_steps, starting_seir.shape[0], starting_seir.shape[1]),
                      dtype=starting_seir.dtype)
     seir = np.copy(starting_seir)
     for step in range(num_steps):
@@ -81,25 +78,81 @@ def simulate(matrix: np.ndarray, starting_seir: np.ndarray, num_steps: int,
         # Tracking days and seirs
         seir[(seir > 0)] += 1
         seir[(seir < 0)] = 1
-        seirs[:, :, step] = seir
+        seirs[step, :, :] = seir
 
     return seirs
 
 
 @njit(parallel=True)
-def find_num_susceptible_nodes(seirs: np.ndarray) -> int:
+def _find_num_susceptible_nodes(seirs: np.ndarray) -> int:
     return np.sum(seirs[:, State.S.value, -1] > 0)
 
 
-def save_visualization(seirs: np.ndarray, name: str):
-    with open(name, 'w') as out_file:
-        for step in range(seirs.shape[2]):
-            susceptible_nodes = np.where(seirs[:, State.S.value, step] > 0)[0]
-            exposed_nodes = np.where(seirs[:, State.E.value, step] > 0)[0]
-            infectious_nodes = np.where(seirs[:, State.I.value, step] > 0)[0]
-            removed_nodes = np.where(seirs[:, State.R.value, step] > 0)[0]
-            out_file.writelines(('\n'.join(f'{node} {State.S.value}' for node in susceptible_nodes),
-                                 '\n'.join(f'{node} {State.E.value}' for node in exposed_nodes),
-                                 '\n'.join(f'{node} {State.I.value}' for node in infectious_nodes),
-                                 '\n'.join(f'{node} {State.R.value}' for node in removed_nodes),
-                                 '\n'))
+def make_visualization_str(seirs: np.ndarray) -> str:
+    # import pdb; pdb.set_trace()
+    # FIXME: the arrays of nodes do not contain all of the nodes they should. In fact, the same few nodes keep repeating.
+    vis_str = ''
+    for step in range(seirs.shape[0]):
+        susceptible_nodes = np.where(seirs[step, :, State.S.value] > 0)[0]
+        exposed_nodes = np.where(seirs[step, :, State.E.value] > 0)[0]
+        infectious_nodes = np.where(seirs[step, :, State.I.value] > 0)[0]
+        removed_nodes = np.where(seirs[step, :, State.R.value] > 0)[0]
+
+        s_lines = '\n'.join(f'{node} {State.S.value}' for node in susceptible_nodes)
+        e_lines = '\n'.join(f'{node} {State.E.value}' for node in exposed_nodes)
+        i_lines = '\n'.join(f'{node} {State.I.value}' for node in infectious_nodes)
+        r_lines = '\n'.join(f'{node} {State.R.value}' for node in removed_nodes)
+        if len(s_lines) > 0:
+            vis_str += s_lines + '\n'
+        if len(e_lines) > 0:
+            vis_str += e_lines + '\n'
+        if len(i_lines) > 0:
+            vis_str += i_lines + '\n'
+        if len(r_lines) > 0:
+            vis_str += r_lines + '\n'
+        # This extra newline is to separate the steps
+        vis_str += '\n'
+    # append 'end\n' because that's just what the visualizer program wants
+    return vis_str + 'end\n'
+
+
+def read_disease(file_name: str) -> Tuple[Disease, SEIRInitFunc]:
+    with open(file_name, 'r') as f:
+        fields = f.readline().split(' ')
+    disease = Disease(int(fields[0]), int(fields[1]), float(fields[2]))
+    num_to_infect = int(fields[3])
+
+    def init_func(num_nodes: int) -> np.ndarray:
+        nonlocal num_to_infect
+        # the four is for the four states in SEIR
+        seir = np.zeros((num_nodes, 4), dtype=np.int32)
+        to_infect = np.random.randint(seir.shape[0], size=num_to_infect)
+        susceptible_nodes = np.array([node for node in range(num_nodes)
+                                      if node not in to_infect])
+        seir[to_infect, State.I.value] = 1
+        seir[susceptible_nodes, State.S.value] = 1
+        return seir
+
+    return disease, init_func
+
+
+def read_adj_list(file_name) -> np.ndarray:
+    """
+    This reads in the data from half a symmetric matrix and mirrors it.
+    If the whole matrix is present in the file, that won't cause problems.
+    This cannot read unsymmetric matrices.
+    """
+    with open(file_name, 'r') as f:
+        line = f.readline()
+        shape = (int(line[:-1]), int(line[:-1]))
+        matrix = np.zeros(shape, dtype=np.uint8)
+
+        line = f.readline()[:-1]
+        i = 1
+        while len(line) > 0:
+            coord = line.split(' ')
+            matrix[int(coord[0]), int(coord[1])] = 1
+            matrix[int(coord[1]), int(coord[0])] = 1
+            line = f.readline()[:-1]
+            i += 1
+    return matrix

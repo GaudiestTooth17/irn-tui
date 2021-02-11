@@ -1,11 +1,10 @@
-from typing import Any, Optional, List, Tuple
+from typing import Any, Optional, List
 import subprocess as sp
 import matplotlib.pyplot as plt
 import collections
 import numpy as np
 import networkx as nx
 from typing import Dict
-from sim import Disease, SEIRInitFunc
 
 
 def safe_cast(obj: Any, T) -> Optional[int]:
@@ -95,28 +94,6 @@ def ls_dir(dir: str) -> DirContents:
     return DirContents(dir, files)
 
 
-def read_adj_list(file_name) -> np.ndarray:
-    """
-    This reads in the data from half a symmetric matrix and mirrors it.
-    If the whole matrix is present in the file, that won't cause problems.
-    This cannot read unsymmetric matrices.
-    """
-    with open(file_name, 'r') as f:
-        line = f.readline()
-        shape = (int(line[:-1]), int(line[:-1]))
-        matrix = np.zeros(shape, dtype=np.uint8)
-
-        line = f.readline()[:-1]
-        i = 1
-        while len(line) > 0:
-            coord = line.split(' ')
-            matrix[int(coord[0]), int(coord[1])] = 1
-            matrix[int(coord[1]), int(coord[0])] = 1
-            line = f.readline()[:-1]
-            i += 1
-    return matrix
-
-
 def show_deg_dist_from_matrix(matrix: np.ndarray, title, *, color='b', display=False, save=False):
     """
     This shows a degree distribution from a matrix.
@@ -181,20 +158,3 @@ def show_clustering_coefficent_dist(node_to_coefficient: Dict[int, float], node_
     print(f'Average clustering coefficient for all nodes: {avg_clustering_coefficient}')
 
     plt.show()
-
-
-def read_disease(file_name: str) -> Tuple[Disease, SEIRInitFunc]:
-    with open(file_name, 'r') as f:
-        fields = f.readline().split(' ')
-    disease = Disease(int(fields[0]), int(fields[1]), float(fields[2]))
-
-    num_to_infect = int(fields[4])
-
-    def init_func(num_nodes: int) -> np.ndarray:
-        nonlocal num_to_infect
-        # the four is for the four states in SEIR
-        seir = np.zeros((num_nodes, 4), dtype=np.int32)
-        seir[np.random.randint(seir.shape[0], size=num_to_infect)] = 1
-        return seir
-
-    return disease, init_func
