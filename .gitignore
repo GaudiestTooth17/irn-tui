@@ -5,3 +5,4 @@ graphs/*
 diseases/*
 plots/*
 __pycache__/*
+*.png

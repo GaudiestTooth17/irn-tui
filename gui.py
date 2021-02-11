@@ -5,6 +5,7 @@ from tkinter.constants import BOTTOM, END, LEFT, RIGHT
 import constants as cns
 from utility import ls_dir, run_cmd
 import sim
+import time
 
 
 def main():
@@ -64,7 +65,7 @@ def run_batch_screen(root: Tk, old_frame: Frame):
     sim_len_box = Entry(frame, textvariable=StringVar, bd=4)
     nsb_label = Label(frame, text='Num Sims', width=10)
     num_sims_box = Entry(frame, textvariable=StringVar, bd=4)
-    r0_box = Label(frame, text='-', width=10)
+    summary_box = Label(frame, text='-', width=10)
 
     # buttons
     def go_back():
@@ -75,15 +76,19 @@ def run_batch_screen(root: Tk, old_frame: Frame):
     def run():
         graph = graph_names[graph_list_box.get(graph_list_box.curselection())]
         disease = disease_names[disease_list_box.get(disease_list_box.curselection())]
-        sim_len = sim_len_box.get()
-        num_sims = num_sims_box.get()
-        output = run_cmd(cns.SIM_BIN, disease, graph, num_sims, sim_len)
-        r0_box.config(text=output, width=len(output))
+        sim_len = int(sim_len_box.get())
+        num_sims = int(num_sims_box.get())
+        # output = run_cmd(cns.SIM_BIN, disease, graph, num_sims, sim_len)
+        start_time = time.time()
+        output = 'Proportion susceptible: {:.4} ({:.3} s)'\
+            .format(sim.run_sim_batch(graph, disease, sim_len, num_sims),
+                    time.time()-start_time)
+        summary_box.config(text=output, width=len(output))
     run_button = Button(frame, command=run, text='Run')
 
     # pack the widgets
     back_button.pack(side=BOTTOM)
-    r0_box.pack(side=BOTTOM)
+    summary_box.pack(side=BOTTOM)
     graph_list_box.pack(side=RIGHT, after=back_button)
     disease_list_box.pack(side=RIGHT, after=graph_list_box)
     slb_label.pack(side=BOTTOM, after=disease_list_box)
@@ -111,7 +116,7 @@ def run_vis_sim_screen(root: Tk, old_frame: Frame):
     disease_list_box.insert(END, *disease_names.contents)
 
     # misc
-    r0_box = Label(frame, text='-', width=10)
+    summary_box = Label(frame, text='-', width=10)
     save_label = Label(frame, text='Visualization Name', width=18)
     save_box = Entry(frame, textvariable=StringVar, bd=4)
 
@@ -124,11 +129,10 @@ def run_vis_sim_screen(root: Tk, old_frame: Frame):
     def run():
         graph = graph_names[graph_list_box.get(graph_list_box.curselection())]
         disease = disease_names[disease_list_box.get(disease_list_box.curselection())]
-        output = sim.visualize_sim(graph, disease, 100)
+        output, summary = sim.visualize_sim(graph, disease, 100)
         save_file_name = f'{cns.VIS_DIR}/{save_box.get()}'\
             if len(save_box.get()) > 0 else f'{cns.VIS_DIR}/tmp'
-        result = output.split('\n')[-2]
-        r0_box.config(text=result, width=len(result))
+        summary_box.config(text=summary, width=len(summary))
         with open(save_file_name, 'w') as vis_file:
             with open(graph, 'r') as graph_file:
                 graph_text = graph_file.readlines()
@@ -139,7 +143,7 @@ def run_vis_sim_screen(root: Tk, old_frame: Frame):
 
     # pack the widgets
     back_button.pack(side=BOTTOM)
-    r0_box.pack(side=BOTTOM)
+    summary_box.pack(side=BOTTOM)
     graph_list_box.pack(side=RIGHT, after=back_button)
     disease_list_box.pack(side=RIGHT, after=graph_list_box)
     run_button.pack(side=BOTTOM, after=disease_list_box)

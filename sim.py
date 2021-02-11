@@ -4,6 +4,7 @@ from typing import Iterable, Tuple, Callable
 from enum import IntEnum
 from collections import namedtuple
 from numba import njit, prange
+import time
 
 
 class State(IntEnum):
@@ -28,22 +29,26 @@ def seir_list_to_ndarray(node_states: Iterable[Tuple[int, State]]) -> np.ndarray
 
 
 def visualize_sim(matrix_file_name: str, disease_file_name: str, num_steps: int) -> str:
+    time_start = time.time()
     matrix = read_adj_list(matrix_file_name)
     disease, init_func = read_disease(disease_file_name)
     initial_seir = init_func(matrix.shape[0])
     seirs = _simulate(matrix, initial_seir, num_steps, disease)
-    return make_visualization_str(seirs)
+    vis_str = make_visualization_str(seirs)
+    summary = '{:.4} ({:.3} s)'.format(_find_num_susceptible_nodes(seirs)/matrix.shape[0],
+                                       time.time()-time_start)
+    return vis_str, summary
 
 
-@njit
 def run_sim_batch(matrix_file_name: str, disease_file_name: str, num_steps: int,
                   num_sims: int) -> float:
     matrix = read_adj_list(matrix_file_name)
     disease, init_func = read_disease(disease_file_name)
     initial_seir = init_func(matrix.shape[0])
-    num_susceptible = [_find_num_susceptible_nodes(_simulate(matrix, initial_seir, num_steps, disease))
-                       for _ in prange(num_sims)]
-    return sum(num_susceptible)/len(num_susceptible)
+    num_susceptible = (_find_num_susceptible_nodes(_simulate(matrix, initial_seir, num_steps, disease))
+                       for _ in prange(num_sims))
+    proportion_susceptible = (x/matrix.shape[0] for x in num_susceptible)
+    return sum(proportion_susceptible)/num_sims
 
 
 def _simulate(matrix: np.ndarray, starting_seir: np.ndarray, num_steps: int,
@@ -89,8 +94,6 @@ def _find_num_susceptible_nodes(seirs: np.ndarray) -> int:
 
 
 def make_visualization_str(seirs: np.ndarray) -> str:
-    # import pdb; pdb.set_trace()
-    # FIXME: the arrays of nodes do not contain all of the nodes they should. In fact, the same few nodes keep repeating.
     vis_str = ''
     for step in range(seirs.shape[0]):
         susceptible_nodes = np.where(seirs[step, :, State.S.value] > 0)[0]
