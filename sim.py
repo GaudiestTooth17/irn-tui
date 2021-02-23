@@ -151,11 +151,9 @@ def read_adj_list(file_name) -> np.ndarray:
         matrix = np.zeros(shape, dtype=np.uint8)
 
         line = f.readline()[:-1]
-        i = 1
         while len(line) > 0:
             coord = line.split(' ')
             matrix[int(coord[0]), int(coord[1])] = 1
             matrix[int(coord[1]), int(coord[0])] = 1
             line = f.readline()[:-1]
-            i += 1
     return matrix
